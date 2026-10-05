@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&family=Poppins:wght@700&family=Roboto:wght@400;600;700;800&display=swap');
+@import 'tailwindcss';
+
+/* Paleta e fontes do protótipo do Figma */
+@theme {
+  --color-primary:     #1A365D;
+  --color-primary-dark:#12283F;
+  --color-primary-light:#EAF0F8;
+  --color-primary-mid: #B9CBE2;
+  --color-success:     #2E7D32;
+  --color-success-light: #E8F5E9;
+  --color-alert:       #D97706;
+  --color-alert-light: #FEF3E2;
+  --color-danger:      #C62828;
+  --color-danger-light: #FFEBEE;
+  --color-surface:     #FFFFFF;
+  --color-background:  #F8F9FA;
+  --font-family-sans:  'Inter', sans-serif;
+  --font-family-display: 'Nunito', sans-serif;
+}
+
+/* Fonte base de 18px: foco em legibilidade para o público idoso */
+body {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  line-height: 1.6;
+  background-color: #F8F9FA;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: 'Nunito', sans-serif;
+  line-height: 1.25;
+}
+
+input, select, textarea, button {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+}
+
+button:disabled { cursor: not-allowed; }
+
+*:focus-visible {
+  outline: 3px solid #1A365D;
+  outline-offset: 2px;
+}
+
+/* Respeita quem pediu menos animação no sistema operacional */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(26,54,93,0.2); border-radius: 2px; }
