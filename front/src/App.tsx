@@ -1,105 +1,90 @@
-import { useEffect, useRef, useState } from 'react'
-import { PhoneShell } from './componentes/UI'
-import { useSessao } from './contexto/Sessao'
-import { perfilDaTela, telaDeLogin, telaInicial, type Parametros, type ScreenName } from './navegacao'
+import { lazy, Suspense, useState, type ReactNode } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router'
+import type { TipoUsuario } from '@/api/tipos'
+import { Layout } from '@/componentes/Layout'
+import { Carregando } from '@/componentes/ui'
+import { rotaInicial, useSessao } from '@/contexto/Sessao'
+import { Entrada } from '@/telas/publico/Entrada'
+import { Cadastro } from '@/telas/publico/Cadastro'
+import { NaoEncontrada } from '@/telas/NaoEncontrada'
+import { Inicio } from '@/telas/paciente/Inicio'
+import { Agendar } from '@/telas/paciente/Agendar'
+import { Guia } from '@/telas/paciente/Guia'
+import { Consultas } from '@/telas/paciente/Consultas'
+import { DetalheConsulta } from '@/telas/paciente/DetalheConsulta'
+import { Clinicas } from '@/telas/paciente/Clinicas'
+import { Perfil } from '@/telas/paciente/Perfil'
+import { Conta } from '@/telas/Conta'
 
-import {
-  WelcomeScreen, LoginScreen, RegisterScreen, HomeScreen,
-  PreTriageScreen, BookingScreen, SuccessScreen, AppointmentsScreen,
-  AppointmentDetailScreen, ProfileScreen, ClinicsScreen, CardScreen,
-} from './telas/PatientScreens'
-import {
-  ProLoginScreen, ProScheduleScreen, ProAvailabilityScreen, ProAddAvailabilityScreen,
-} from './telas/ProfessionalScreens'
-import {
-  AdminLoginScreen, AdminDashboardScreen, AdminClinicsScreen, AdminClinicFormScreen,
-  AdminProfessionalsScreen, AdminProfessionalFormScreen, AdminSpecialtiesScreen, AdminAppointmentsScreen,
-} from './telas/AdminScreens'
-import {
-  AlertsCatalogScreen, AlertAdvanceScreen, AlertOccupiedScreen, AlertLimitScreen,
-  AlertCancelDeadlineScreen, AlertWindowOccupiedScreen, AlertConnectionScreen,
-  StateEmptyScreen, StateLoadingScreen, StateNoTimesScreen,
-} from './telas/AlertScreens'
+// As telas de profissional e administrador só são baixadas por quem entra
+// com esses perfis. O paciente, maioria dos acessos, carrega menos código.
+const Agenda = lazy(() => import('@/telas/profissional/Agenda'))
+const Horarios = lazy(() => import('@/telas/profissional/Horarios'))
+const Painel = lazy(() => import('@/telas/admin/Painel'))
+const ConsultasAdmin = lazy(() => import('@/telas/admin/ConsultasAdmin'))
+const ClinicasAdmin = lazy(() => import('@/telas/admin/ClinicasAdmin'))
+const FormClinica = lazy(() => import('@/telas/admin/FormClinica'))
+const ProfissionaisAdmin = lazy(() => import('@/telas/admin/ProfissionaisAdmin'))
+const FormProfissional = lazy(() => import('@/telas/admin/FormProfissional'))
+const EspecialidadesAdmin = lazy(() => import('@/telas/admin/EspecialidadesAdmin'))
+const PacientesAdmin = lazy(() => import('@/telas/admin/PacientesAdmin'))
 
-function accentForScreen(s: ScreenName): string {
-  if (s.startsWith('alert') || s.startsWith('state-')) return '#374151'
-  return '#1A365D'
+function Protegido({ perfis, children }: { perfis: TipoUsuario[]; children: ReactNode }) {
+  const { usuario } = useSessao()
+  const local = useLocation()
+  if (!usuario) return <Navigate to="/" replace state={{ de: local.pathname }} />
+  if (!perfis.includes(usuario.tipoUsuario)) return <Navigate to={rotaInicial(usuario.tipoUsuario)} replace />
+  return <Suspense fallback={<Carregando />}>{children}</Suspense>
 }
 
+// Quem já chega logado vai direto para o início. Quem entra ou se cadastra
+// nesta tela é levado pela própria tela, que sabe para onde ir.
+function SomenteVisitante({ children }: { children: ReactNode }) {
+  const { usuario } = useSessao()
+  const [jaLogado] = useState(usuario)
+  if (jaLogado) return <Navigate to={rotaInicial(jaLogado.tipoUsuario)} replace />
+  return children
+}
+
+const P: TipoUsuario[] = ['PACIENTE']
+const R: TipoUsuario[] = ['PROFISSIONAL']
+const A: TipoUsuario[] = ['ADMINISTRADOR']
+
 export default function App() {
-  const { usuario, sessaoExpirada } = useSessao()
-  const [screen, setScreen] = useState<ScreenName>(() => (usuario ? telaInicial(usuario.tipoUsuario) : 'welcome'))
-  const [params, setParams] = useState<Parametros>({})
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  function go(s: ScreenName, p: Parametros = {}) {
-    setParams(p)
-    setScreen(s)
-    setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' }), 0)
-  }
-
-  // Controle de acesso: cada tela exige o perfil correto (Visão Geral do PI, item 6)
-  const exigido = perfilDaTela(screen)
-  const bloqueado = exigido !== null && usuario?.tipoUsuario !== exigido
-  useEffect(() => {
-    if (bloqueado && exigido) setScreen(telaDeLogin(exigido))
-  }, [bloqueado, exigido])
-
-  // Sessão expirada (401): volta para o login do perfil da tela atual
-  useEffect(() => {
-    if (sessaoExpirada) setScreen(exigido ? telaDeLogin(exigido) : 'welcome')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessaoExpirada])
-
-  function renderScreen() {
-    if (bloqueado) return null
-    switch (screen) {
-      // Paciente
-      case 'welcome':              return <WelcomeScreen go={go}/>
-      case 'login':                return <LoginScreen go={go}/>
-      case 'register':             return <RegisterScreen go={go}/>
-      case 'home':                 return <HomeScreen go={go}/>
-      case 'pre-triage':           return <PreTriageScreen go={go}/>
-      case 'booking':              return <BookingScreen go={go} params={params}/>
-      case 'success':              return <SuccessScreen go={go} params={params}/>
-      case 'appointments':         return <AppointmentsScreen go={go}/>
-      case 'appointment-detail':   return <AppointmentDetailScreen go={go} params={params}/>
-      case 'profile':              return <ProfileScreen go={go}/>
-      case 'clinics':              return <ClinicsScreen go={go}/>
-      case 'card':                 return <CardScreen go={go}/>
-      // Profissional
-      case 'pro-login':            return <ProLoginScreen go={go}/>
-      case 'pro-schedule':         return <ProScheduleScreen go={go}/>
-      case 'pro-availability':     return <ProAvailabilityScreen go={go}/>
-      case 'pro-add-availability': return <ProAddAvailabilityScreen go={go}/>
-      // Administrador
-      case 'admin-login':          return <AdminLoginScreen go={go}/>
-      case 'admin-dashboard':      return <AdminDashboardScreen go={go}/>
-      case 'admin-clinics':        return <AdminClinicsScreen go={go}/>
-      case 'admin-clinic-form':    return <AdminClinicFormScreen go={go} params={params}/>
-      case 'admin-professionals':  return <AdminProfessionalsScreen go={go}/>
-      case 'admin-professional-form': return <AdminProfessionalFormScreen go={go} params={params}/>
-      case 'admin-specialties':    return <AdminSpecialtiesScreen go={go}/>
-      case 'admin-appointments':   return <AdminAppointmentsScreen go={go}/>
-      // Avisos e estados
-      case 'alerts':               return <AlertsCatalogScreen go={go}/>
-      case 'alert-advance':        return <AlertAdvanceScreen go={go}/>
-      case 'alert-occupied':       return <AlertOccupiedScreen go={go}/>
-      case 'alert-limit':          return <AlertLimitScreen go={go}/>
-      case 'alert-cancel-deadline':return <AlertCancelDeadlineScreen go={go}/>
-      case 'alert-window-occupied':return <AlertWindowOccupiedScreen go={go}/>
-      case 'alert-connection':     return <AlertConnectionScreen go={go}/>
-      case 'state-empty':          return <StateEmptyScreen go={go}/>
-      case 'state-loading':        return <StateLoadingScreen go={go}/>
-      case 'state-no-times':       return <StateNoTimesScreen go={go}/>
-    }
-  }
-
   return (
-    <PhoneShell accent={accentForScreen(screen)}>
-      <div ref={scrollRef} className="h-full overflow-y-auto">
-        {renderScreen()}
-      </div>
-    </PhoneShell>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<SomenteVisitante><Entrada /></SomenteVisitante>} />
+        <Route path="/cadastro" element={<SomenteVisitante><Cadastro /></SomenteVisitante>} />
+
+        <Route element={<Protegido perfis={['PACIENTE', 'PROFISSIONAL', 'ADMINISTRADOR']}><Layout /></Protegido>}>
+          <Route path="/inicio" element={<Protegido perfis={P}><Inicio /></Protegido>} />
+          <Route path="/agendar" element={<Protegido perfis={P}><Agendar /></Protegido>} />
+          <Route path="/guia" element={<Protegido perfis={P}><Guia /></Protegido>} />
+          <Route path="/consultas" element={<Protegido perfis={P}><Consultas /></Protegido>} />
+          <Route path="/consultas/:id" element={<Protegido perfis={P}><DetalheConsulta /></Protegido>} />
+          <Route path="/clinicas" element={<Protegido perfis={P}><Clinicas /></Protegido>} />
+          <Route path="/perfil" element={<Protegido perfis={P}><Perfil /></Protegido>} />
+
+          <Route path="/profissional" element={<Protegido perfis={R}><Agenda /></Protegido>} />
+          <Route path="/profissional/horarios" element={<Protegido perfis={R}><Horarios /></Protegido>} />
+
+          <Route path="/admin" element={<Protegido perfis={A}><Painel /></Protegido>} />
+          <Route path="/admin/consultas" element={<Protegido perfis={A}><ConsultasAdmin /></Protegido>} />
+          <Route path="/admin/clinicas" element={<Protegido perfis={A}><ClinicasAdmin /></Protegido>} />
+          <Route path="/admin/clinicas/nova" element={<Protegido perfis={A}><FormClinica /></Protegido>} />
+          <Route path="/admin/clinicas/:id" element={<Protegido perfis={A}><FormClinica /></Protegido>} />
+          <Route path="/admin/profissionais" element={<Protegido perfis={A}><ProfissionaisAdmin /></Protegido>} />
+          <Route path="/admin/profissionais/novo" element={<Protegido perfis={A}><FormProfissional /></Protegido>} />
+          <Route path="/admin/profissionais/:id" element={<Protegido perfis={A}><FormProfissional /></Protegido>} />
+          <Route path="/admin/especialidades" element={<Protegido perfis={A}><EspecialidadesAdmin /></Protegido>} />
+          <Route path="/admin/pacientes" element={<Protegido perfis={A}><PacientesAdmin /></Protegido>} />
+
+          <Route path="/conta" element={<Protegido perfis={['PROFISSIONAL', 'ADMINISTRADOR']}><Conta /></Protegido>} />
+          <Route path="*" element={<NaoEncontrada />} />
+        </Route>
+        <Route path="*" element={<NaoEncontrada />} />
+      </Routes>
+    </BrowserRouter>
   )
 }

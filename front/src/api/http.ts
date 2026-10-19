@@ -1,70 +1,90 @@
-import { API_URL, TEMPO_LIMITE_MS, USAR_MOCK } from './config'
-import { ErroApi, type CodigoErro } from './erros'
-import { lerSessao } from './sessao'
+import { API_URL, AVISO_LENTIDAO_MS, TEMPO_LIMITE_MS } from './config'
+import { ErroApi } from './erros'
 
 export type Metodo = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-
 type Consulta = Record<string, string | number | boolean | undefined | null>
 
-// Avisado pelo contexto de sessão quando a API responde 401.
-let aoExpirarSessao: (() => void) | null = null
-export function definirAoExpirarSessao(fn: () => void) {
-  aoExpirarSessao = fn
+// ── Token da sessão ────────────────────────────────────────────────────────
+// O contexto de sessão informa o token atual e é avisado quando a API
+// responde 401 (sessão expirada), para mandar a pessoa de volta ao login.
+let tokenAtual: string | null = null
+let aoExpirar: ((codigo: string) => void) | null = null
+
+export function definirToken(token: string | null) {
+  tokenAtual = token
+}
+export function definirAoExpirarSessao(fn: (codigo: string) => void) {
+  aoExpirar = fn
+}
+
+// ── Aviso de servidor lento ────────────────────────────────────────────────
+// Quantas requisições estão demorando mais que o normal. A interface mostra
+// "o servidor está acordando" enquanto esse número for maior que zero.
+let lentas = 0
+const ouvintes = new Set<(n: number) => void>()
+function avisar() {
+  ouvintes.forEach((fn) => fn(lentas))
+}
+export function ouvirLentidao(fn: (n: number) => void) {
+  ouvintes.add(fn)
+  return () => {
+    ouvintes.delete(fn)
+  }
 }
 
 function montarConsulta(consulta?: Consulta) {
   if (!consulta) return ''
   const p = new URLSearchParams()
-  for (const [k, v] of Object.entries(consulta)) {
-    if (v !== undefined && v !== null && v !== '') p.set(k, String(v))
+  for (const [chave, valor] of Object.entries(consulta)) {
+    if (valor !== undefined && valor !== null && valor !== '') p.set(chave, String(valor))
   }
-  const s = p.toString()
-  return s ? `?${s}` : ''
+  const texto = p.toString()
+  return texto ? `?${texto}` : ''
 }
 
-/**
- * Ponto único de comunicação com o backend.
- * Em modo mock, a mesma chamada é atendida pelo servidor simulado em src/api/mock,
- * que aplica as regras do documento regras-agendamento-v3.
- */
-export async function requisicao<T>(metodo: Metodo, rota: string, corpo?: unknown, consulta?: Consulta): Promise<T> {
-  const token = lerSessao()?.token ?? null
-  const caminho = rota + montarConsulta(consulta)
-
-  if (USAR_MOCK) {
-    const { atenderMock } = await import('./mock/servidor')
-    try {
-      return (await atenderMock(metodo, caminho, corpo, token)) as T
-    } catch (e) {
-      if (e instanceof ErroApi && e.status === 401 && token) aoExpirarSessao?.()
-      throw e
-    }
-  }
-
+/** Ponto único de comunicação com a API REST. */
+export async function requisicao<T>(
+  metodo: Metodo,
+  rota: string,
+  opcoes: { corpo?: unknown; consulta?: Consulta } = {},
+): Promise<T> {
+  const { corpo, consulta } = opcoes
   const controle = new AbortController()
-  const timer = setTimeout(() => controle.abort(), TEMPO_LIMITE_MS)
+  let ficouLenta = false
+  const timerLento = setTimeout(() => {
+    ficouLenta = true
+    lentas += 1
+    avisar()
+  }, AVISO_LENTIDAO_MS)
+  const timerLimite = setTimeout(() => controle.abort(), TEMPO_LIMITE_MS)
+
   let resposta: Response
   try {
-    resposta = await fetch(`${API_URL}${caminho}`, {
+    resposta = await fetch(`${API_URL}${rota}${montarConsulta(consulta)}`, {
       method: metodo,
       headers: {
         Accept: 'application/json',
         ...(corpo !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(tokenAtual ? { Authorization: `Bearer ${tokenAtual}` } : {}),
       },
       body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
       signal: controle.signal,
     })
-  } catch {
-    throw new ErroApi('SEM_CONEXAO')
+  } catch (e) {
+    throw new ErroApi(controle.signal.aborted ? 'TEMPO_ESGOTADO' : 'SEM_CONEXAO')
   } finally {
-    clearTimeout(timer)
+    clearTimeout(timerLento)
+    clearTimeout(timerLimite)
+    if (ficouLenta) {
+      lentas -= 1
+      avisar()
+    }
   }
 
   if (resposta.status === 204) return undefined as T
 
-  let dados: any = null
   const texto = await resposta.text()
+  let dados: any = null
   if (texto) {
     try {
       dados = JSON.parse(texto)
@@ -74,10 +94,9 @@ export async function requisicao<T>(metodo: Metodo, rota: string, corpo?: unknow
   }
 
   if (!resposta.ok) {
-    const erro = dados?.erro
-    const codigo = (erro?.codigo as CodigoErro) ?? (resposta.status === 401 ? 'NAO_AUTENTICADO' : 'ERRO_DESCONHECIDO')
-    if (resposta.status === 401 && token) aoExpirarSessao?.()
-    throw new ErroApi(codigo, erro?.mensagem, resposta.status, erro?.detalhes)
+    const codigo: string = dados?.erro?.codigo ?? (resposta.status >= 500 ? 'ERRO_INTERNO' : 'ERRO_DESCONHECIDO')
+    if (resposta.status === 401 && tokenAtual && rota !== '/autenticacao/login') aoExpirar?.(codigo)
+    throw new ErroApi(codigo, dados?.erro?.mensagem, resposta.status)
   }
   return dados as T
 }

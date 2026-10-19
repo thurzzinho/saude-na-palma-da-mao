@@ -1,78 +1,99 @@
-// Funções que as telas usam para falar com a API.
-// Cada função corresponde a uma rota descrita em docs/CONTRATO_API.md.
+// Uma função por rota da API. Os caminhos, métodos e corpos seguem o README
+// e o Swagger do repositório saude-palma-mao-api (/docs).
 
 import { requisicao } from './http'
 import type {
-  Agendamento, Clinica, DadosClinica, DadosEspecialidade, DadosProfissional, Disponibilidade,
-  Especialidade, FiltrosAgendamento, NovaDisponibilidade, NovoAgendamento, NovoPaciente, Paciente,
-  Profissional, ProfissionalClinica, RespostaHorarios, RespostaLogin,
+  Agendamento, Clinica, DadosClinica, DadosProfissional, Especialidade, Janela, NovaJanela,
+  NovoAgendamento, NovoPaciente, Paciente, Profissional, RespostaHorarios, RespostaLogin,
+  StatusAgendamento, UsuarioSessao, Vinculo,
 } from './tipos'
 
-// ── Autenticação e paciente ─────────────────────────────────────────────────
 export const autenticacao = {
-  entrar: (login: string, senha: string) =>
-    requisicao<RespostaLogin>('POST', '/autenticacao/login', { login, senha }),
+  /** Aceita e-mail ou CPF no mesmo campo. */
+  entrar: (identificador: string, senha: string) =>
+    requisicao<RespostaLogin>('POST', '/autenticacao/login', { corpo: { identificador, senha } }),
+  cadastrar: (dados: NovoPaciente) =>
+    requisicao<RespostaLogin>('POST', '/autenticacao/cadastro', { corpo: dados }),
+  eu: () => requisicao<UsuarioSessao & { cpf: string | null; dataNascimento: string | null }>('GET', '/autenticacao/eu'),
 }
 
 export const pacientes = {
-  cadastrar: (dados: NovoPaciente) => requisicao<RespostaLogin>('POST', '/pacientes', dados),
-  meusDados: () => requisicao<Paciente>('GET', '/pacientes/me'),
-  atualizarMeusDados: (dados: { nome: string; telefone: string; email: string }) =>
-    requisicao<Paciente>('PUT', '/pacientes/me', dados),
+  meusDados: () => requisicao<Paciente>('GET', '/pacientes/eu'),
+  atualizarMeusDados: (dados: Partial<Pick<Paciente, 'nome' | 'email' | 'telefone' | 'dataNascimento'>>) =>
+    requisicao<Paciente>('PATCH', '/pacientes/eu', { corpo: dados }),
+  buscar: (filtro: { cpf?: string; nome?: string }) =>
+    requisicao<Paciente[]>('GET', '/pacientes', { consulta: filtro }),
 }
 
-// ── Especialidades ──────────────────────────────────────────────────────────
 export const especialidades = {
-  // Paciente recebe só as ativas. Administrador pode pedir todas.
-  listar: (todas = false) => requisicao<Especialidade[]>('GET', '/especialidades', undefined, { todas: todas || undefined }),
-  criar: (d: DadosEspecialidade) => requisicao<Especialidade>('POST', '/especialidades', d),
-  atualizar: (id: number, d: DadosEspecialidade) => requisicao<Especialidade>('PUT', `/especialidades/${id}`, d),
-  definirAtivo: (id: number, ativo: boolean) => requisicao<Especialidade>('PATCH', `/especialidades/${id}/ativacao`, { ativo }),
+  listar: (incluirInativas = false) =>
+    requisicao<Especialidade[]>('GET', '/especialidades', { consulta: { incluirInativas: incluirInativas || undefined } }),
+  criar: (d: { nome: string; descricao?: string | null }) =>
+    requisicao<Especialidade>('POST', '/especialidades', { corpo: d }),
+  atualizar: (id: number, d: { nome?: string; descricao?: string | null; ativo?: boolean }) =>
+    requisicao<Especialidade>('PATCH', `/especialidades/${id}`, { corpo: d }),
+  desativar: (id: number) => requisicao<void>('DELETE', `/especialidades/${id}`),
 }
 
-// ── Clínicas ────────────────────────────────────────────────────────────────
 export const clinicas = {
-  listar: (opcoes: { todas?: boolean; busca?: string } = {}) =>
-    requisicao<Clinica[]>('GET', '/clinicas', undefined, { todas: opcoes.todas || undefined, busca: opcoes.busca }),
+  listar: (f: { idEspecialidade?: number; busca?: string; incluirInativas?: boolean } = {}) =>
+    requisicao<Clinica[]>('GET', '/clinicas', {
+      consulta: { idEspecialidade: f.idEspecialidade, busca: f.busca, incluirInativas: f.incluirInativas || undefined },
+    }),
   obter: (id: number) => requisicao<Clinica>('GET', `/clinicas/${id}`),
-  criar: (d: DadosClinica) => requisicao<Clinica>('POST', '/clinicas', d),
-  atualizar: (id: number, d: DadosClinica) => requisicao<Clinica>('PUT', `/clinicas/${id}`, d),
-  definirAtivo: (id: number, ativo: boolean) => requisicao<Clinica>('PATCH', `/clinicas/${id}/ativacao`, { ativo }),
+  criar: (d: DadosClinica) => requisicao<Clinica>('POST', '/clinicas', { corpo: d }),
+  atualizar: (id: number, d: DadosClinica) => requisicao<Clinica>('PATCH', `/clinicas/${id}`, { corpo: d }),
+  definirEspecialidades: (id: number, idsEspecialidades: number[]) =>
+    requisicao<Clinica>('PUT', `/clinicas/${id}/especialidades`, { corpo: { idsEspecialidades } }),
+  desativar: (id: number) => requisicao<void>('DELETE', `/clinicas/${id}`),
 }
 
-// ── Profissionais ───────────────────────────────────────────────────────────
+export const vinculos = {
+  /** Busca do paciente: cada profissional aparece uma vez por clínica. */
+  buscar: (f: { idEspecialidade?: number; idClinica?: number; nome?: string } = {}) =>
+    requisicao<Vinculo[]>('GET', '/profissionais-clinicas', { consulta: f }),
+}
+
 export const profissionais = {
-  listar: () => requisicao<Profissional[]>('GET', '/profissionais'),
+  listar: (f: { busca?: string; incluirInativos?: boolean } = {}) =>
+    requisicao<Profissional[]>('GET', '/profissionais', {
+      consulta: { busca: f.busca, incluirInativos: f.incluirInativos || undefined },
+    }),
   obter: (id: number) => requisicao<Profissional>('GET', `/profissionais/${id}`),
-  meusDados: () => requisicao<Profissional>('GET', '/profissionais/me'),
-  criar: (d: DadosProfissional) => requisicao<Profissional>('POST', '/profissionais', d),
-  atualizar: (id: number, d: DadosProfissional) => requisicao<Profissional>('PUT', `/profissionais/${id}`, d),
-  definirAtivo: (id: number, ativo: boolean) => requisicao<Profissional>('PATCH', `/profissionais/${id}/ativacao`, { ativo }),
-  // Busca do paciente (regras v3, seção 6)
-  buscarParaAgendamento: (f: { idEspecialidade?: number; idClinica?: number }) =>
-    requisicao<ProfissionalClinica[]>('GET', '/profissionais-clinicas', undefined, f),
+  criar: (d: DadosProfissional) => requisicao<Profissional>('POST', '/profissionais', { corpo: d }),
+  atualizar: (id: number, d: DadosProfissional) =>
+    requisicao<Profissional>('PATCH', `/profissionais/${id}`, { corpo: d }),
+  definirEspecialidades: (id: number, idsEspecialidades: number[]) =>
+    requisicao<Profissional>('PUT', `/profissionais/${id}/especialidades`, { corpo: { idsEspecialidades } }),
+  vincularClinica: (id: number, idClinica: number) =>
+    requisicao<Profissional>('POST', `/profissionais/${id}/clinicas`, { corpo: { idClinica } }),
+  desvincularClinica: (id: number, idClinica: number) =>
+    requisicao<void>('DELETE', `/profissionais/${id}/clinicas/${idClinica}`),
+  desativar: (id: number) => requisicao<void>('DELETE', `/profissionais/${id}`),
 }
 
-// ── Disponibilidades ────────────────────────────────────────────────────────
 export const disponibilidades = {
+  /** Horários livres de um dia (já descontados os ocupados e respeitando 24 h de antecedência). */
   horariosLivres: (idProfissionalClinica: number, data: string) =>
-    requisicao<RespostaHorarios>('GET', '/disponibilidades', undefined, { idProfissionalClinica, data }),
-  datasComHorario: (idProfissionalClinica: number) =>
-    requisicao<{ datas: string[] }>('GET', '/disponibilidades/datas', undefined, { idProfissionalClinica }),
-  minhas: () => requisicao<Disponibilidade[]>('GET', '/disponibilidades/minhas'),
-  criar: (d: NovaDisponibilidade) => requisicao<Disponibilidade>('POST', '/disponibilidades', d),
+    requisicao<RespostaHorarios>('GET', '/disponibilidades', { consulta: { idProfissionalClinica, data } }),
+  janelas: (f: { de?: string; ate?: string; idProfissionalClinica?: number } = {}) =>
+    requisicao<Janela[]>('GET', '/disponibilidades/janelas', { consulta: f }),
+  criar: (d: NovaJanela) => requisicao<Janela & { horariosGerados: number }>('POST', '/disponibilidades', { corpo: d }),
   desativar: (id: number) => requisicao<void>('DELETE', `/disponibilidades/${id}`),
 }
 
-// ── Agendamentos ────────────────────────────────────────────────────────────
 export const agendamentos = {
-  // Paciente: os seus. Profissional: os da sua agenda. Administrador: todos, com filtros.
-  listar: (f: FiltrosAgendamento = {}) =>
-    requisicao<Agendamento[]>('GET', '/agendamentos', undefined, { ...f }),
+  meus: () => requisicao<Agendamento[]>('GET', '/agendamentos'),
   obter: (id: number) => requisicao<Agendamento>('GET', `/agendamentos/${id}`),
-  criar: (d: NovoAgendamento) => requisicao<Agendamento>('POST', '/agendamentos', d),
+  criar: (d: NovoAgendamento) => requisicao<Agendamento>('POST', '/agendamentos', { corpo: d }),
+  cancelar: (id: number, motivo?: string) =>
+    requisicao<Agendamento>('PATCH', `/agendamentos/${id}/cancelamento`, { corpo: { motivo: motivo || undefined } }),
   confirmar: (id: number) => requisicao<Agendamento>('PATCH', `/agendamentos/${id}/confirmacao`),
   marcarRealizado: (id: number) => requisicao<Agendamento>('PATCH', `/agendamentos/${id}/realizacao`),
-  cancelar: (id: number, motivo?: string) =>
-    requisicao<Agendamento>('PATCH', `/agendamentos/${id}/cancelamento`, { motivo: motivo || null }),
+}
+
+export const agenda = {
+  /** Profissional vê a própria agenda; administrador vê todas e pode filtrar por vínculo. */
+  listar: (f: { data?: string; status?: StatusAgendamento; idProfissionalClinica?: number } = {}) =>
+    requisicao<Agendamento[]>('GET', '/agenda', { consulta: f }),
 }
