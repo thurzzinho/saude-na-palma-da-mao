@@ -1,13 +1,12 @@
-// Configuração lida das variáveis de ambiente do Vite (arquivo .env).
-// VITE_USAR_MOCK=true faz o front funcionar sem backend, com dados locais.
+// Endereço da API. Vem da variável VITE_API_URL (arquivo .env ou painel da
+// Vercel). Sem ela, o front usa a API publicada no Render.
+const URL_PADRAO = 'https://saude-palma-mao-api.onrender.com'
 
-const urlBruta = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) || URL_PADRAO).replace(/\/+$/, '')
 
-export const API_URL = urlBruta.replace(/\/+$/, '')
+// No plano gratuito do Render a API hiberna depois de 15 minutos sem uso, e a
+// primeira chamada pode levar cerca de um minuto (README da API).
+export const TEMPO_LIMITE_MS = 75_000
 
-export const USAR_MOCK =
-  String(import.meta.env.VITE_USAR_MOCK ?? '').toLowerCase() === 'true' || API_URL === ''
-
-// Tempo máximo de espera por resposta da API, em milissegundos.
-// O plano gratuito do Render "adormece" o serviço e a primeira chamada pode demorar.
-export const TEMPO_LIMITE_MS = 60000
+// A partir deste tempo de espera o app avisa que o servidor está acordando.
+export const AVISO_LENTIDAO_MS = 6_000

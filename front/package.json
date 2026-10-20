@@ -1,31 +1,33 @@
 {
-  "name": "saude-na-palma-da-mao-front",
+  "name": "saude-facil-front",
   "private": true,
-  "version": "0.1.0",
-  "description": "PWA do Projeto Integrador Saúde na Palma da Mão (Senac PE), 1ª entrega",
+  "version": "1.0.0",
+  "description": "PWA do Saúde Fácil, Projeto Integrador Saúde na Palma da Mão (Senac PE), 1ª entrega",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "verificar-tipos": "tsc --noEmit",
-    "testar-mock": "tsx scripts/testar-mock.ts"
+    "verificar-tipos": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@fontsource/atkinson-hyperlegible": "^5.3.0",
+    "@fontsource/nunito": "^5.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router": "^7.18.4"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^6.0.0",
-    "tailwindcss": "^4.0.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.7.0",
-    "vite": "^8.0.5"
-  },
-  "packageManager": "pnpm@10.34.3",
-  "engines": { "node": ">=22" }
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4"
+  }
 }

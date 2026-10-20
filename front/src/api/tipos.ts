@@ -1,6 +1,5 @@
-// Tipos trocados entre o front e a API REST.
-// Os nomes seguem o schema PI_SAUDE_.sql, convertidos para camelCase.
-// O contrato completo está em docs/CONTRATO_API.md.
+// Tipos das respostas da API, conferidos com src/apresentadores.js e os
+// controllers do repositório saude-palma-mao-api (commit 287ac59).
 
 export type TipoUsuario = 'PACIENTE' | 'PROFISSIONAL' | 'ADMINISTRADOR'
 export type StatusAgendamento = 'AGENDADO' | 'CONFIRMADO' | 'CANCELADO' | 'REALIZADO'
@@ -9,14 +8,24 @@ export interface UsuarioSessao {
   idUsuario: number
   nome: string
   email: string
+  telefone?: string | null
   tipoUsuario: TipoUsuario
   idPaciente: number | null
-  idProfissional: number | null
+  idProfissional?: number | null
 }
 
 export interface RespostaLogin {
-  token: string
   usuario: UsuarioSessao
+  token: string
+}
+
+export interface NovoPaciente {
+  nome: string
+  email: string
+  cpf: string
+  dataNascimento: string // AAAA-MM-DD
+  telefone?: string
+  senha: string
 }
 
 export interface Paciente {
@@ -25,18 +34,11 @@ export interface Paciente {
   nome: string
   email: string
   telefone: string | null
-  cpf: string            // somente dígitos
-  dataNascimento: string // YYYY-MM-DD
-  sexo: string | null
-}
-
-export interface NovoPaciente {
-  nome: string
   cpf: string
   dataNascimento: string
-  telefone: string
-  email: string
-  senha: string
+  sexo: string | null
+  observacoes: string | null
+  ativo: boolean
 }
 
 export interface Especialidade {
@@ -46,35 +48,41 @@ export interface Especialidade {
   ativo: boolean
 }
 
-export interface DadosEspecialidade {
-  nome: string
-  descricao: string | null
+export interface Endereco {
+  logradouro: string | null
+  numero: string | null
+  bairro: string | null
+  cidade: string | null
+  uf: string | null
+  cep: string | null
+  completo: string
 }
 
 export interface Clinica {
   idClinica: number
   nome: string
-  cnpj: string // somente dígitos
   telefone: string | null
   email: string | null
-  logradouro: string | null
-  numero: string | null
-  bairro: string | null
-  cidade: string
-  uf: string
-  cep: string | null
   horarioFuncionamento: string | null
   ativo: boolean
-  idsEspecialidades: number[]
+  endereco: Endereco
+  especialidades: string[] // nomes
 }
 
-export type DadosClinica = Omit<Clinica, 'idClinica' | 'ativo'>
-
-export interface VinculoClinica {
-  idProfissionalClinica: number
-  idClinica: number
-  nomeClinica: string
-  ativo: boolean
+export interface DadosClinica {
+  nome?: string
+  cnpj?: string
+  telefone?: string | null
+  email?: string | null
+  logradouro?: string
+  numero?: string | null
+  bairro?: string | null
+  cidade?: string | null
+  uf?: string | null
+  cep?: string | null
+  horarioFuncionamento?: string | null
+  idsEspecialidades?: number[]
+  ativo?: boolean
 }
 
 export interface Profissional {
@@ -87,92 +95,75 @@ export interface Profissional {
   conselho: string
   registroProfissional: string
   ufRegistro: string
+  registro: string
   ativo: boolean
-  idsEspecialidades: number[]
-  clinicas: VinculoClinica[]
+  especialidades: { idEspecialidade: number; nome: string }[]
+  clinicas: { idProfissionalClinica: number; idClinica: number; nome: string; ativo: boolean }[]
 }
 
 export interface DadosProfissional {
+  nome?: string
+  email?: string
+  telefone?: string | null
+  cpf?: string
+  conselho?: string
+  registroProfissional?: string
+  ufRegistro?: string
+  senha?: string
+  idsClinicas?: number[]
+  idsEspecialidades?: number[]
+  ativo?: boolean
+}
+
+/** Resultado de GET /profissionais-clinicas: o vínculo é quem tem agenda. */
+export interface Vinculo {
+  idProfissionalClinica: number
+  idProfissional: number
   nome: string
-  email: string
-  telefone: string | null
-  cpf: string
-  conselho: string
-  registroProfissional: string
-  ufRegistro: string
-  idsEspecialidades: number[]
-  idsClinicas: number[]
-  senha?: string // obrigatória só no cadastro
+  registro: string
+  especialidades: string[]
+  clinica: { idClinica: number; nome: string; endereco: string }
 }
 
-// Retorno de GET /profissionais-clinicas (busca do paciente)
-export interface ProfissionalClinica {
+export interface RespostaHorarios {
   idProfissionalClinica: number
-  profissional: {
-    idProfissional: number
-    nome: string
-    conselho: string
-    registroProfissional: string
-    ufRegistro: string
-  }
-  clinica: {
-    idClinica: number
-    nome: string
-    bairro: string | null
-    endereco: string
-  }
-  especialidades: { idEspecialidade: number; nome: string }[]
+  data: string
+  horarios: { idDisponibilidade: number; dataHora: string }[]
 }
 
-export interface Disponibilidade {
+export interface Janela {
   idDisponibilidade: number
-  idProfissionalClinica: number
-  nomeClinica: string
-  dataAtendimento: string // YYYY-MM-DD
-  horaInicio: string      // HH:MM
-  horaFim: string         // HH:MM
-  duracaoMinutos: number
-  ativo: boolean
-  totalHorarios: number
-}
-
-export interface NovaDisponibilidade {
   idProfissionalClinica: number
   dataAtendimento: string
   horaInicio: string
   horaFim: string
   duracaoMinutos: number
+  ativo: boolean
+  profissional: string
+  clinica: string
+  agendamentosAtivos: number
 }
 
-export interface HorarioDisponivel {
-  dataHora: string // ISO 8601 com fuso, ex.: 2026-10-20T08:00:00-03:00
-  hora: string     // HH:MM em America/Recife
-  disponivel: boolean
-}
-
-export interface RespostaHorarios {
-  data: string
-  horarios: HorarioDisponivel[]
+export interface NovaJanela {
+  idProfissionalClinica: number
+  dataAtendimento: string
+  horaInicio: string
+  horaFim: string
+  duracaoMinutos?: number
 }
 
 export interface Agendamento {
   idAgendamento: number
-  idProfissionalClinica: number
   dataHora: string
   status: StatusAgendamento
   observacao: string | null
   canceladoEm: string | null
   motivoCancelamento: string | null
-  paciente: { idPaciente: number; nome: string; telefone: string | null }
-  profissional: {
-    idProfissional: number
-    nome: string
-    conselho: string
-    registroProfissional: string
-    ufRegistro: string
-  }
-  clinica: { idClinica: number; nome: string; bairro: string | null; endereco: string; telefone: string | null }
+  criadoEm: string
+  paciente: { idPaciente: number; nome: string; telefone?: string | null; dataNascimento?: string | null }
   especialidade: { idEspecialidade: number; nome: string }
+  profissional: { idProfissionalClinica: number; nome: string; registro: string }
+  clinica: { idClinica: number; nome: string; endereco: string }
 }
 
 export interface NovoAgendamento {
@@ -180,11 +171,4 @@ export interface NovoAgendamento {
   idEspecialidade: number
   dataHora: string
   observacao?: string
-}
-
-export interface FiltrosAgendamento {
-  data?: string
-  idClinica?: number
-  idProfissional?: number
-  status?: StatusAgendamento
 }

@@ -1,32 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { comoErroApi, type ErroApi } from '../api/erros'
+import { mensagemDeErro } from '@/api/erros'
 
 /**
- * Carrega dados da API e expõe os estados de carregamento e erro.
- * Exemplo: const { dados, carregando, erro, recarregar } = useCarregar(() => clinicas.listar(), [])
+ * Carrega dados da API e expõe estado de carregamento, erro e uma função
+ * para recarregar. Ignora respostas antigas quando as dependências mudam.
  */
-export function useCarregar<T>(buscar: () => Promise<T>, deps: unknown[]) {
+export function useCarregar<T>(buscar: () => Promise<T>, dependencias: unknown[] = []) {
   const [dados, setDados] = useState<T | null>(null)
   const [carregando, setCarregando] = useState(true)
-  const [erro, setErro] = useState<ErroApi | null>(null)
-  const chamada = useRef(0)
+  const [erro, setErro] = useState<string | null>(null)
+  const pedido = useRef(0)
 
-  const recarregar = useCallback(async () => {
-    const minha = ++chamada.current
+  const carregar = useCallback(async () => {
+    const meu = ++pedido.current
     setCarregando(true)
     setErro(null)
     try {
       const r = await buscar()
-      if (minha === chamada.current) setDados(r)
+      if (meu === pedido.current) setDados(r)
     } catch (e) {
-      if (minha === chamada.current) setErro(comoErroApi(e))
+      if (meu === pedido.current) setErro(mensagemDeErro(e))
     } finally {
-      if (minha === chamada.current) setCarregando(false)
+      if (meu === pedido.current) setCarregando(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
+  }, dependencias)
 
-  useEffect(() => { recarregar() }, [recarregar])
+  useEffect(() => {
+    carregar()
+  }, [carregar])
 
-  return { dados, setDados, carregando, erro, recarregar }
+  return { dados, carregando, erro, recarregar: carregar, setDados }
 }

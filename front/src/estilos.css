@@ -1,0 +1,140 @@
+@import 'tailwindcss';
+
+/*
+  Saúde Fácil, identidade visual
+
+  Base no protótipo do Figma (azul-marinho, verde-água do logotipo, cantos
+  arredondados), ajustada para o público da pesquisa: 16 de 18 participantes
+  tinham 60 anos ou mais e "letra pequena" foi a barreira mais citada.
+
+  Tipografia: Atkinson Hyperlegible no texto, desenhada pelo Braille Institute
+  para leitores com baixa visão; Nunito nos títulos, herdada do protótipo.
+*/
+
+@theme {
+  --color-azul: #17375e;
+  --color-azul-escuro: #0f2742;
+  --color-azul-claro: #e7eef7;
+  --color-agua: #0b7468;
+  --color-agua-vivo: #2ec4b6;
+  --color-agua-fundo: #e2f4f1;
+  --color-sol: #f5b921;
+  --color-sol-fundo: #fff4d6;
+  --color-papel: #f2f5f8;
+  --color-tinta: #13202f;
+  --color-tinta-suave: #475569;
+  --color-linha: #c9d3df;
+  --color-linha-forte: #8a99ab;
+  --color-perigo: #b42318;
+  --color-perigo-fundo: #fdecea;
+  --color-aviso: #7a4f00;
+
+  --font-sans: 'Atkinson Hyperlegible', 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-titulo: 'Nunito', 'Atkinson Hyperlegible', Arial, sans-serif;
+
+  --radius-ficha: 1.25rem;
+}
+
+@layer base {
+  /* Tamanho da letra escolhido pela pessoa no perfil. Todo o layout usa rem,
+     então espaçamentos e botões crescem junto com o texto. */
+  html { font-size: 112.5%; }
+  html[data-letra='grande'] { font-size: 125%; }
+  html[data-letra='maior'] { font-size: 137.5%; }
+
+  html, body { background: var(--color-papel); }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-tinta);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3 { font-family: var(--font-titulo); line-height: 1.2; text-wrap: balance; }
+  p { text-wrap: pretty; }
+
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+
+  :root { --color-foco: var(--color-azul); }
+  .sobre-escuro { --color-foco: #ffffff; }
+  :focus-visible { outline: 3px solid var(--color-foco); outline-offset: 3px; }
+}
+
+@layer components {
+  /* Campos de formulário com altura mínima de toque de 3 rem (54 px). */
+  .campo {
+    width: 100%;
+    min-height: 3rem;
+    border: 2px solid var(--color-linha-forte);
+    border-radius: 0.75rem;
+    background: #fff;
+    padding: 0.6rem 0.9rem;
+    font-size: 1rem;
+  }
+  .campo:focus { outline: none; border-color: var(--color-azul); box-shadow: 0 0 0 3px var(--color-azul-claro); }
+  .campo[aria-invalid='true'] { border-color: var(--color-perigo); }
+  .campo::placeholder { color: #6b7a8c; }
+  select.campo { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2313202f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-position: right 0.75rem center; background-size: 1.1rem; background-repeat: no-repeat; padding-right: 2.4rem; }
+
+  /* A "ficha": a consulta marcada lembra a ficha de papel da recepção,
+     com canhoto destacável. É o único elemento decorativo do app. */
+  .ficha {
+    position: relative;
+    display: grid;
+    /* O canhoto tem largura em px limitada: com a letra "muito grande" ele
+       não rouba espaço do texto da consulta. */
+    grid-template-columns: clamp(76px, 22vw, 104px) minmax(0, 1fr);
+    border-radius: var(--radius-ficha);
+    background: #fff;
+    box-shadow: 0 1px 0 rgba(19, 32, 47, 0.06), 0 10px 24px -14px rgba(15, 39, 66, 0.45);
+    overflow: hidden;
+  }
+  .ficha-canhoto {
+    background: var(--color-sol);
+    color: var(--color-azul-escuro);
+    border-right: 2px dashed rgba(15, 39, 66, 0.35);
+    position: relative;
+  }
+  .ficha-canhoto::before, .ficha-canhoto::after {
+    content: '';
+    position: absolute;
+    right: -0.7rem;
+    width: 1.3rem;
+    height: 1.3rem;
+    border-radius: 999px;
+    background: var(--fundo-ficha, var(--color-papel));
+  }
+  .ficha-canhoto::before { top: -0.65rem; }
+  .ficha-canhoto::after { bottom: -0.65rem; }
+  .ficha[data-estado='cancelada'] .ficha-canhoto { background: #dfe5ec; color: var(--color-tinta-suave); }
+  .ficha[data-estado='realizada'] .ficha-canhoto { background: var(--color-agua-fundo); color: var(--color-agua); }
+
+  /* Barra de navegação inferior respeita a área segura do iPhone. */
+  .barra-inferior { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+  .espaco-barra-inferior { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
+  @media (min-width: 64rem) { .espaco-barra-inferior { padding-bottom: 3rem; } }
+}
+
+@keyframes carregando { to { transform: rotate(360deg); } }
+.girando { animation: carregando 0.9s linear infinite; }
+
+@keyframes entrada-ficha {
+  from { opacity: 0; transform: translateY(0.75rem) rotate(-1deg); }
+  to { opacity: 1; transform: none; }
+}
+.ficha-nova { animation: entrada-ficha 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+dialog::backdrop { background: rgba(15, 39, 66, 0.55); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* Barra de ações que fica presa acima do menu inferior no celular. */
+.acima-da-barra { bottom: calc(3.9rem + max(0.5rem, env(safe-area-inset-bottom))); }
+@media (min-width: 64rem) { .acima-da-barra { bottom: 1rem; } }

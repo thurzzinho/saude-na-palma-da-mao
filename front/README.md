@@ -1,150 +1,99 @@
-# Saúde na Palma da Mão (Front-end PWA)
+# Saúde Fácil, front-end (PWA)
 
-Front-end do Projeto Integrador **Saúde na Palma da Mão**, do curso de Análise e Desenvolvimento de Sistemas da Faculdade Senac Pernambuco. Corresponde à 1ª entrega (14/10/2026): PWA responsivo para pré-triagem e agendamento de consultas no polo médico do Recife.
+Aplicativo web do **Saúde Fácil**, solução do Projeto Integrador "Saúde na Palma da Mão" (ADS, Faculdade Senac Pernambuco, 2026.2). Pacientes marcam, acompanham e cancelam consultas no polo médico do Recife; profissionais abrem horários e confirmam atendimentos; a administração mantém clínicas, profissionais e especialidades.
 
-O visual vem do protótipo feito no Figma Make. As regras de negócio seguem o documento `regras-agendamento-v3` e o banco segue o `PI_SAUDE_.sql`.
+Esta versão substitui o front anterior, que era praticamente uma cópia do protótipo do Figma Make e usava um contrato de API diferente do que a API do grupo implementa. Agora o front fala com a API real (`saude-palma-mao-api`), funciona como site e como app instalado (PWA) e segue as decisões tiradas do questionário com usuários.
+
+- Decisões de design e de onde cada uma vem: [`docs/DECISOES.md`](docs/DECISOES.md)
+- Rotas usadas, testes de integração e pendências para o back-end: [`docs/INTEGRACAO.md`](docs/INTEGRACAO.md)
 
 ## Tecnologias
 
-- React 19 e TypeScript
-- Vite 8
+- React 19, TypeScript e Vite 8
 - Tailwind CSS 4
-- PWA com manifest e service worker próprios (`public/sw.js`)
-- Deploy na Vercel
+- React Router 7
+- Fontes Atkinson Hyperlegible e Nunito servidas pelo próprio app (`@fontsource`), para funcionar offline
+- PWA com `manifest.webmanifest` e service worker próprio (`public/sw.js`)
+- Deploy na Vercel (`vercel.json` já configurado)
 
 ## Como rodar
 
-Requisitos: Node.js 22 e pnpm 10. Se o grupo usa [mise](https://mise.jdx.dev/), o arquivo `.mise.toml` já fixa as versões.
+Requisitos: Node.js 22 ou superior e pnpm 10.
 
 ```bash
 pnpm install
-cp .env.example .env
-pnpm dev
+cp .env.example .env      # ajuste VITE_API_URL se precisar
+pnpm dev                  # http://localhost:5173
 ```
 
-Abra `http://localhost:5173`.
+Outros comandos:
 
-### Modo demonstração (sem backend)
-
-Com `VITE_USAR_MOCK=true`, ou com `VITE_API_URL` vazio, o front usa um servidor simulado que roda no próprio navegador (`src/api/mock`). Ele aplica as mesmas regras do documento v3 e guarda os dados no `localStorage`. Isso permite desenvolver e apresentar o front antes do backend ficar pronto.
-
-As datas dos dados de exemplo são calculadas a partir do dia atual, então as regras de 24 horas e 8 horas funcionam em qualquer dia de apresentação. Para voltar aos dados iniciais, use o link **"Modo demonstração: restaurar dados"** no rodapé da tela inicial.
-
-Usuários de teste (somente no modo mock):
-
-| Perfil | Login | Senha |
-|---|---|---|
-| Paciente | `maria.jose@email.com` | `123456` |
-| Profissional | `paulo.menezes@saude.com` | `123456` |
-| Administrador | `admin@saude.com` | `admin123` |
-
-Todos os outros profissionais seguem o padrão `nome.sobrenome@saude.com` com senha `123456`.
-
-> O modo mock não é seguro: as senhas ficam em texto puro no navegador. Ele existe apenas para desenvolvimento e demonstração.
-
-### Ligando no backend real
-
-No `.env`:
-
-```env
-VITE_API_URL=https://endereco-da-api.onrender.com/api
-VITE_USAR_MOCK=false
-```
-
-Reinicie o `pnpm dev`. Nenhuma tela precisa mudar: todas falam com a API por `src/api/servicos.ts`.
-
-O backend precisa seguir o contrato descrito em **[docs/CONTRATO_API.md](docs/CONTRATO_API.md)**: rotas, formato dos objetos, códigos de erro e configuração de CORS.
-
-## Scripts
-
-| Comando | O que faz |
+| Comando | Para que serve |
 |---|---|
-| `pnpm dev` | Servidor de desenvolvimento |
-| `pnpm build` | Verifica os tipos e gera a versão de produção em `dist/` |
-| `pnpm preview` | Serve o `dist/` localmente (o service worker só funciona aqui e em produção) |
+| `pnpm build` | Confere os tipos e gera a versão de produção em `dist/` |
+| `pnpm preview` | Serve a versão de produção em `http://localhost:4173` (o service worker só funciona aqui, não no `dev`) |
 | `pnpm verificar-tipos` | Só a checagem do TypeScript |
-| `pnpm testar-mock` | Testa as regras de negócio do servidor simulado contra o documento v3 |
+
+### Variável de ambiente
+
+| Variável | Valor |
+|---|---|
+| `VITE_API_URL` | Endereço da API, sem barra no final. Padrão: `https://saude-palma-mao-api.onrender.com`. Para a API local: `http://localhost:3000` |
+
+## Integração com a API: o que precisa estar configurado
+
+1. **CORS no Render.** A API só aceita as origens listadas em `ORIGENS_PERMITIDAS`. Inclua o domínio da Vercel e o endereço local, separados por vírgula. Exemplo, trocando pelo domínio real do projeto na Vercel:
+   `ORIGENS_PERMITIDAS=https://SEU-PROJETO.vercel.app,http://localhost:5173,http://localhost:4173`
+   Sem isso o navegador bloqueia as chamadas e o app mostra "Não foi possível falar com o servidor".
+2. **Variável na Vercel.** Em Project Settings, Environment Variables, crie `VITE_API_URL` com o endereço da API.
+3. **Servidor dormindo.** No plano gratuito do Render a API hiberna depois de 15 minutos sem uso. Quando uma chamada passa de 6 segundos, o app mostra o aviso "Conectando ao servidor" em vez de parecer travado. Antes de apresentar, abra `/saude` da API.
+
+## Contas de teste
+
+As mesmas do Swagger da API (`/docs`), criadas pelo seed do banco. O paciente de teste precisa ser cadastrado uma vez pela tela "Criar minha conta" ou pela rota `POST /autenticacao/cadastro`.
+
+| Perfil | Entrar com | Senha |
+|---|---|---|
+| Paciente | CPF `529.982.247-25` | `senhaSegura123` |
+| Profissional | `carlos.lima@exemplo.test` | `senha123456` |
+| Administração | `admin@exemplo.test` | `senha123456` |
+
+Todos entram pela mesma tela. O app descobre o perfil pela resposta do login e abre a área certa.
 
 ## Estrutura
 
 ```
 src/
-├── api/
-│   ├── config.ts        Lê VITE_API_URL e VITE_USAR_MOCK
-│   ├── http.ts          Cliente HTTP único (token, timeout, formato de erro)
-│   ├── erros.ts         Códigos de erro e mensagens para o usuário
-│   ├── servicos.ts      Uma função por rota da API
-│   ├── sessao.ts        Guarda o token no navegador
-│   ├── tipos.ts         Tipos dos objetos trocados com a API
-│   └── mock/            Servidor simulado e dados de exemplo
-├── componentes/UI.tsx   Botões, campos, modais e estados de tela
-├── contexto/Sessao.tsx  Login, cadastro e logout
-├── telas/               Telas de paciente, profissional, administrador e avisos
-├── utils/               Datas (fuso America/Recife), máscaras, validações, hook de carregamento
-├── navegacao.ts         Nomes das telas e controle de acesso por perfil
-├── App.tsx
-└── main.tsx
-docs/CONTRATO_API.md     Contrato que o backend precisa implementar
-scripts/testar-mock.ts   Testes das regras de negócio
+  api/            config, cliente HTTP, mensagens de erro, tipos e uma função por rota da API
+  contexto/       sessão (token JWT) e preferências (tamanho da letra)
+  componentes/    layout responsivo, ficha da consulta, botões, campos, avisos, diálogo
+  telas/
+    publico/      entrada (login) e cadastro
+    paciente/     início, agendar, ajuda para escolher, consultas, detalhe, clínicas, perfil
+    profissional/ agenda e horários de atendimento
+    admin/        painel, consultas, clínicas, profissionais, especialidades, pacientes
+  utils/          datas no fuso do Recife, máscaras, lembrete .ics, mapa e compartilhamento
+public/           manifest, service worker, ícones e imagens
 ```
 
-## Funcionalidades da 1ª entrega
+## Telas por perfil
 
-Cada item abaixo remete ao slide de requisitos da Visão Geral do PI.
+| Perfil | Telas |
+|---|---|
+| Paciente | Início, Marcar consulta (4 etapas), Ajuda para escolher o médico, Minhas consultas, Detalhe com cancelamento, Clínicas e endereços, Perfil |
+| Profissional | Minha agenda (confirmar e marcar como realizada), Horários de atendimento (abrir e fechar períodos), Conta |
+| Administração | Painel, Consultas (com cancelamento), Clínicas, Profissionais, Especialidades, Pacientes, Conta |
 
-**Paciente**
-- Cadastro com validação de CPF, login por e-mail ou CPF.
-- Consulta e pesquisa de clínicas por nome ou bairro.
-- Consulta de especialidades e de profissionais por nome, clínica ou especialidade.
-- Agendamento em 4 etapas: especialidade, profissional, data e horário, revisão.
-- Minhas consultas (próximas e histórico), detalhe e cancelamento com motivo opcional.
-- Perfil com edição de nome, telefone e e-mail.
-- Pré-triagem por regras simples, que leva direto ao agendamento da especialidade indicada. A versão com IA é da 2ª entrega.
+## Layout no celular e no computador
 
-**Profissional**
-- Agenda por data, com confirmação e marcação de realizado.
-- Cadastro de janelas de atendimento, com prévia de quantos horários serão gerados.
-- Desativação de janela, com aviso listando as consultas que impedem a operação.
+- Até 1023 px: barra superior com o botão de tamanho da letra e menu inferior fixo, respeitando a área segura do iPhone.
+- A partir de 1024 px: menu lateral fixo e conteúdo com largura máxima de leitura. Não existe mais a "moldura de celular" do protótipo; no computador o app ocupa a tela como um site.
+- As telas foram conferidas sem rolagem horizontal em 320, 375, 768 e 1280 px, e com a letra no tamanho "muito grande" (ver `docs/INTEGRACAO.md`).
 
-**Administrador**
-- Painel com totais e consultas do dia.
-- CRUD de clínicas, profissionais e especialidades, com exclusão lógica (ativar e desativar).
-- Gestão de agendamentos com filtros por clínica, profissional, data e situação.
+## Testes
 
-### Regras de negócio refletidas no front
-
-As regras valem no back, que é a fonte da verdade. O front repete algumas só para orientar o usuário antes do erro:
-
-- Horários com menos de 24 horas não aparecem.
-- O botão de cancelar some quando faltam menos de 8 horas, e a tela mostra o telefone da clínica.
-- Cada erro da API leva a uma reação específica. `HORARIO_INDISPONIVEL`, por exemplo, volta para a escolha de horário já com a lista atualizada. `LIMITE_AGENDAMENTOS_EXCEDIDO` abre o aviso de limite.
-- Datas sempre exibidas no fuso `America/Recife`, independentemente do fuso do aparelho.
-
-### Acessibilidade
-
-- Fonte base de 18 px.
-- Botões com no mínimo 48 a 56 px de altura.
-- Contorno de foco visível.
-- Mensagens de erro e de status com `role="alert"` e `role="status"`.
-- Rótulos ligados aos campos.
-- Respeito à preferência de reduzir animações do sistema operacional.
-
-## Deploy na Vercel
-
-1. Suba este repositório no GitHub.
-2. Na Vercel, clique em **Add New Project** e importe o repositório. O `vercel.json` já define build e saída.
-3. Em **Settings > Environment Variables**, cadastre `VITE_API_URL` e `VITE_USAR_MOCK`.
-4. Avise o time do back sobre a URL final da Vercel, para ela entrar na lista de CORS da API.
-
-Observação: o plano gratuito do Render coloca o serviço para dormir depois de um tempo sem uso, e a primeira requisição pode demorar. O front espera até 60 segundos antes de mostrar erro de conexão (`TEMPO_LIMITE_MS` em `src/api/config.ts`).
-
-## Pendências conhecidas
-
-- **Recuperação de senha e login com Google.** Estavam no protótipo, mas foram removidos porque não há suporte no backend da 1ª entrega.
-- **Pontos de regra para o grupo decidir.** Estão na seção 5 do [contrato da API](docs/CONTRATO_API.md).
-- **Navegação por estado, sem URLs próprias.** Herdada do protótipo. Uma evolução possível é adotar React Router para cada tela ter sua URL.
-- **Nome da marca.** O protótipo usa "Saúde Fácil" nas telas de entrada e "Saúde na Palma da Mão" no restante. Vale o grupo padronizar.
+`testes/ponta-a-ponta.py` percorre os fluxos dos três perfis contra a API local e confere o layout em várias larguras. As instruções estão no começo do arquivo e o resultado da última execução está em [`docs/INTEGRACAO.md`](docs/INTEGRACAO.md).
 
 ## Equipe
 
-Arthur Andrey, Gabriel Roberto, Ibson Gomes, Jean Phillip, João Victor Santino e Layza Maria. Turma 2025.32.185, Faculdade Senac Pernambuco.
+Arthur Andrey, Ibson Gomes, Gabriel Roberto, Jean Phillip, João Santino e Layza Maria.
