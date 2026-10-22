@@ -84,6 +84,9 @@ public/           manifest, service worker, ícones e imagens
 | Profissional | Minha agenda (confirmar e marcar como realizada), Horários de atendimento (abrir e fechar períodos), Conta |
 | Administração | Painel, Consultas (com cancelamento), Clínicas, Profissionais, Especialidades, Pacientes, Conta |
 
+## Link da aplicação:
+https://saude-na-palma-da-mao.vercel.app/
+
 ## Layout no celular e no computador
 
 - Até 1023 px: barra superior com o botão de tamanho da letra e menu inferior fixo, respeitando a área segura do iPhone.
